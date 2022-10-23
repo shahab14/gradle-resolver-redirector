@@ -23,7 +23,3 @@ jobs:
 
     - name: Build
       run: go build -v main.go
-    - name: Codefresh pipeline runner
-     # You may pin to the exact commit or the version.
-     # uses: codefresh-io/codefresh-pipeline-runner@c563a2bb98a7b8522192aaabf79ee9504141f8dc
-      uses: codefresh-io/codefresh-pipeline-runner@v7
