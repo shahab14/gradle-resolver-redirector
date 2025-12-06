@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  gradle-resolver-redirector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gradle-resolver-redirector
+    ports:
+      - "10010:10010"
+    restart: always
+    networks:
+      - redirector-network
+
+networks:
+  redirector-network:
+    driver: bridge

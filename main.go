@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"redirector/handlers"
+	"redirector/middleware"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -16,8 +18,37 @@ func handleRoutes(router *mux.Router) {
 func createServer() {
 	muxRoute := mux.NewRouter().StrictSlash(false)
 	log.Println("starting server")
+
+	// Apply security middleware
+	// Rate limiting: 100 requests per second, burst of 200, cleanup every 10 minutes
+	rateLimiter := middleware.NewRateLimiter(100, 200, 10*time.Minute)
+
+	// Create middleware chain
+	var handler http.Handler = muxRoute
+	handler = middleware.MethodWhitelistMiddleware([]string{"GET", "HEAD"})(handler)
+	handler = middleware.PathValidationMiddleware(handler)
+	handler = middleware.SecurityHeadersMiddleware(handler)
+	handler = rateLimiter.RateLimitMiddleware(handler)
+	handler = middleware.TimeoutMiddleware(60 * time.Second)(handler)
+
 	handleRoutes(muxRoute)
-	log.Fatal(http.ListenAndServe("0.0.0.0:10010", muxRoute))
+
+	// Configure HTTP server with security settings
+	server := &http.Server{
+		Addr:           "0.0.0.0:10010",
+		Handler:        handler,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   60 * time.Second,
+		IdleTimeout:    120 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1MB
+	}
+
+	log.Println("Server configured with security measures:")
+	log.Println("  - Rate limiting: 100 req/s per IP")
+	log.Println("  - Request timeout: 60s")
+	log.Println("  - Path validation enabled")
+	log.Println("  - Security headers enabled")
+	log.Fatal(server.ListenAndServe())
 }
 
 func main() {

@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Build artifacts
+redirector
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+
+# Documentation
+README.md
+License.md
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+
