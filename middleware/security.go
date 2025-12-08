@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"strings"
@@ -114,71 +113,10 @@ func getClientIP(r *http.Request) string {
 	return ip
 }
 
-// SecurityHeadersMiddleware adds security headers
-func SecurityHeadersMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Prevent clickjacking
-		w.Header().Set("X-Frame-Options", "DENY")
-		// Prevent MIME type sniffing
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		// XSS protection
-		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		// Content Security Policy
-		w.Header().Set("Content-Security-Policy", "default-src 'self'")
-		// Remove server information
-		w.Header().Set("Server", "")
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// PathValidationMiddleware validates request paths
-func PathValidationMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-
-		// Block path traversal attempts
-		if strings.Contains(path, "..") || strings.Contains(path, "//") {
-			log.Printf("Blocked suspicious path: %s from IP: %s", path, getClientIP(r))
-			http.Error(w, "Invalid path", http.StatusBadRequest)
-			return
-		}
-
-		// Limit path length (prevent buffer overflow attacks)
-		if len(path) > 2048 {
-			log.Printf("Blocked overly long path from IP: %s", getClientIP(r))
-			http.Error(w, "Path too long", http.StatusRequestURITooLong)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 // TimeoutMiddleware adds timeout to requests
 func TimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, cancel := context.WithTimeout(r.Context(), timeout)
-			defer cancel()
-
-			r = r.WithContext(ctx)
-
-			done := make(chan bool)
-			go func() {
-				next.ServeHTTP(w, r)
-				done <- true
-			}()
-
-			select {
-			case <-done:
-				return
-			case <-ctx.Done():
-				log.Printf("Request timeout for IP: %s, Path: %s", getClientIP(r), r.URL.Path)
-				http.Error(w, "Request timeout", http.StatusRequestTimeout)
-				return
-			}
-		})
+		return http.TimeoutHandler(next, timeout, "Request timeout").(http.Handler)
 	}
 }
 
